@@ -8,7 +8,11 @@ For Sprint 1 (CBA-1), I've added the basic GUI and the login and sign-up screens
 
 The forms check for missing details, usernames that are already taken and passwords that don't match.
 
-After logging in, the user can see the films, their genres and showing times. There is also a choice between Standard and Recline tickets. The booking part still needs to be added, so these options don't make a booking yet.
+For CBA-2, I've added a search by date. After logging in, the user sees today's films and showing times. They can type a date in dd/mm/yyyy format or use the arrows beside the date, then select Search. Invalid dates and dates in the past aren't accepted.
+
+There is also a movie name search. Typing part of a name, such as "dune" or "avengers", finds matching films for the selected date. Capital letters don't matter. Leaving the name blank shows all films for that day. Press Enter or select Search to see the results.
+
+The user can select a showing time, choose Standard or Recline tickets and select Continue. The next screen shows their chosen film, date, time and ticket type. They can also go back and change their choice. Seats and completed bookings still need to be added.
 
 ## Films
 
@@ -18,7 +22,7 @@ After logging in, the user can see the films, their genres and showing times. Th
 - Avengers Doomsday (Superhero)
 - Primetime (Drama)
 
-The showing times are examples and use the 24-hour format.
+The showing times are examples and use the 24-hour format. The sample timetable covers 14 days starting from the day the application opens. Dune part 3, Street Fighter and Avengers Doomsday show every day. Resident Evil and Primetime show on alternate days, starting with the first day. Searching outside this timetable shows a message saying there are no showings.
 
 ## Running the application
 
@@ -26,9 +30,10 @@ The showing times are examples and use the 24-hour format.
 2. Open `Main.java` in the `movieBooking` package.
 3. Right-click and select **Run As > Java Application**.
 4. Choose **Sign up** to create an account, then use those details to log in.
+5. Choose a date and enter a movie name if needed. Select Search, then select a showing time and Continue.
 
 The application uses Java 8 or later. No extra libraries or database are needed. Account details are stored locally, including passwords, so use a made-up password for testing. The account file and compiled files are excluded from Git.
 
 ## Next steps
 
-The next part of the project is to build the booking features, including choosing a showing, selecting seats and saving a booking.
+The next part of the project is to add seat selection and save completed bookings.

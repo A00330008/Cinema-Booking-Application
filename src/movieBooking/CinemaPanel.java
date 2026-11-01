@@ -3,9 +3,18 @@ package movieBooking;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.time.format.ResolverStyle;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+import javax.swing.event.*;
 
 public class CinemaPanel extends JPanel implements ActionListener {
 
@@ -21,6 +30,24 @@ public class CinemaPanel extends JPanel implements ActionListener {
 
 	private UserManager userManager;
 	private User currentUser;
+	private CinemaSchedule schedule = new CinemaSchedule();
+	private DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("dd/MM/uuuu")
+			.withResolverStyle(ResolverStyle.STRICT);
+	private Showing selectedShowing;
+	private JPanel movieList = panel(new GridLayout(0, 1, 0, 10), background);
+	private ArrayList<JToggleButton> showingButtons = new ArrayList<>();
+	private ButtonGroup showingGroup = new ButtonGroup();
+	private JSpinner bookingDate = new JSpinner(new SpinnerDateModel(new Date(), null, null, Calendar.DAY_OF_MONTH));
+	private JTextField movieName = new JTextField();
+	private JButton searchButton = button("Search", "searchButton", true);
+	private JButton todayButton = button("Today", "todayButton", false);
+	private JButton continueButton = button("Continue", "continueButton", true);
+	private JComboBox<String> ticketType = new JComboBox<>(new String[] { "Standard", "Recline" });
+	private JLabel searchMessage = label(" ", 13, muted);
+	private JLabel chosenFilm = label("No showing selected", 14, muted);
+	private JLabel chosenDate = label(" ", 14, muted);
+	private JLabel chosenTime = label(" ", 14, muted);
+	private BookingPanel bookingPanel;
 	private CardLayout screens = new CardLayout();
 	private JPanel screenPanel = new JPanel(screens);
 	private CardLayout accountCards = new CardLayout();
@@ -59,6 +86,16 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		screenPanel.setBackground(background);
 		screenPanel.add(buildAccountScreen(), "account");
 		screenPanel.add(buildHomeScreen(), "home");
+		bookingPanel = new BookingPanel(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				if (selectedShowing != null && selectedShowing.getDate().isBefore(LocalDate.now())) {
+					resetSearch();
+				}
+				screens.show(screenPanel, "home");
+			}
+		});
+		screenPanel.add(bookingPanel, "booking");
 		add(screenPanel, BorderLayout.CENTER);
 
 		JPanel footer = panel(new BorderLayout(), surface);
@@ -75,6 +112,9 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		loginUsername.addActionListener(this);
 		loginPassword.addActionListener(this);
 		confirmPassword.addActionListener(this);
+		searchButton.addActionListener(this);
+		todayButton.addActionListener(this);
+		continueButton.addActionListener(this);
 		showAccountCard("login");
 	}
 
@@ -214,55 +254,211 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		heading.add(label("1  Choose showing     >     2  Choose seats     >     3  Confirm booking", 13, muted),
 				BorderLayout.SOUTH);
 		top.add(heading, BorderLayout.CENTER);
+		top.add(buildDateSearch(), BorderLayout.SOUTH);
 		homePanel.add(top, BorderLayout.NORTH);
 
-		JPanel movieList = panel(new GridLayout(5, 1, 0, 10), background);
-		movieList.add(movieCard("Dune part 3", "Sci-Fi", new String[] { "14:00", "17:00", "20:00" }));
-		movieList.add(movieCard("Resident Evil", "Horror", new String[] { "16:30", "19:00", "21:30" }));
-		movieList.add(movieCard("Street Fighter", "Action", new String[] { "13:30", "16:00", "18:30" }));
-		movieList.add(movieCard("Avengers Doomsday", "Superhero", new String[] { "14:30", "17:30", "20:30" }));
-		movieList.add(movieCard("Primetime", "Drama", new String[] { "15:00", "17:45", "20:15" }));
-		JScrollPane scroll = new JScrollPane(movieList);
+		JPanel results = panel(new BorderLayout(), background);
+		results.add(movieList, BorderLayout.NORTH);
+		JScrollPane scroll = new JScrollPane(results);
 		scroll.setBorder(null);
 		scroll.getVerticalScrollBar().setUnitIncrement(16);
 		homePanel.add(scroll, BorderLayout.CENTER);
 
 		JPanel ticketPanel = panel(new BorderLayout(0, 15), surface);
-		ticketPanel.setPreferredSize(new Dimension(220, 0));
+		ticketPanel.setPreferredSize(new Dimension(260, 0));
 		ticketPanel.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(line), new EmptyBorder(20, 18, 20, 18)));
-		JPanel ticketText = panel(new GridLayout(0, 1, 0, 10), surface);
-		ticketText.add(label("Your visit", 20, text));
-		ticketText.add(label("Athlone Cinema", 14, muted));
-		ticketText.add(label("Ticket type", 13, text));
-		JComboBox<String> ticketType = new JComboBox<>(new String[] { "Standard", "Recline" });
+		JPanel ticketText = formPanel();
 		ticketType.setFont(new Font("Segoe UI", Font.PLAIN, 14));
 		ticketType.setName("ticketType");
 		ticketType.getAccessibleContext().setAccessibleName("Ticket type");
-		ticketText.add(ticketType);
+		continueButton.setEnabled(false);
+		JComponent[] visitDetails = { label("Your visit", 20, text), label("Athlone Cinema", 14, muted),
+				chosenFilm, chosenDate, chosenTime, label("Ticket type", 13, text), ticketType, continueButton };
+		for (JComponent component : visitDetails) {
+			component.setAlignmentX(Component.LEFT_ALIGNMENT);
+			component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
+			ticketText.add(component);
+			ticketText.add(Box.createVerticalStrut(8));
+		}
 		ticketPanel.add(ticketText, BorderLayout.NORTH);
 		homePanel.add(ticketPanel, BorderLayout.EAST);
 		return homePanel;
 	}
 
-	private JPanel movieCard(String title, String genre, String[] times) {
-		JPanel card = panel(new BorderLayout(12, 0), surface);
+	private JPanel buildDateSearch() {
+		JPanel search = panel(new BorderLayout(0, 8), background);
+		JPanel controls = panel(new FlowLayout(FlowLayout.LEFT, 8, 0), background);
+		JLabel nameLabel = label("Movie name", 14, text);
+		nameLabel.setLabelFor(movieName);
+		controls.add(nameLabel);
+		movieName.setName("movieName");
+		movieName.getAccessibleContext().setAccessibleName("Movie name");
+		movieName.setToolTipText("Leave blank to see all films for this date.");
+		movieName.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+		movieName.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(line), new EmptyBorder(6, 10, 6, 10)));
+		movieName.setPreferredSize(new Dimension(180, 40));
+		movieName.addActionListener(this);
+		controls.add(movieName);
+		JLabel dateLabel = label("Date (dd/mm/yyyy)", 14, text);
+		dateLabel.setLabelFor(bookingDate);
+		controls.add(dateLabel);
+		bookingDate.setName("bookingDate");
+		bookingDate.getAccessibleContext().setAccessibleName("Booking date");
+		JSpinner.DateEditor editor = new JSpinner.DateEditor(bookingDate, "dd/MM/yyyy");
+		editor.getFormat().setLenient(false);
+		bookingDate.setEditor(editor);
+		JFormattedTextField dateField = editor.getTextField();
+		dateField.setName("dateInput");
+		dateField.setFont(new Font("Segoe UI", Font.PLAIN, 15));
+		dateField.setFocusLostBehavior(JFormattedTextField.PERSIST);
+		dateField.addActionListener(this);
+		bookingDate.setPreferredSize(new Dimension(145, 40));
+		controls.add(bookingDate);
+		controls.add(todayButton);
+		controls.add(searchButton);
+		search.add(controls, BorderLayout.NORTH);
+		searchMessage.setName("searchMessage");
+		search.add(searchMessage, BorderLayout.SOUTH);
+
+		DocumentListener searchChanges = new DocumentListener() {
+			@Override
+			public void insertUpdate(DocumentEvent e) {
+				resetSearch();
+			}
+			@Override
+			public void removeUpdate(DocumentEvent e) {
+				resetSearch();
+			}
+			@Override
+			public void changedUpdate(DocumentEvent e) {
+				resetSearch();
+			}
+		};
+		dateField.getDocument().addDocumentListener(searchChanges);
+		movieName.getDocument().addDocumentListener(searchChanges);
+		return search;
+	}
+
+	private void clearSelection() {
+		selectedShowing = null;
+		showingGroup.clearSelection();
+		continueButton.setEnabled(false);
+		chosenFilm.setText("No showing selected");
+		chosenDate.setText(" ");
+		chosenTime.setText(" ");
+	}
+
+	private void resetSearch() {
+		clearSelection();
+		movieList.removeAll();
+		showingButtons.clear();
+		showingGroup = new ButtonGroup();
+		searchMessage.setForeground(muted);
+		searchMessage.setText("Select Search to see matching showings.");
+		movieList.revalidate();
+		movieList.repaint();
+	}
+
+	private void searchShowings() {
+		resetSearch();
+		JSpinner.DateEditor editor = (JSpinner.DateEditor) bookingDate.getEditor();
+		String value = editor.getTextField().getText().trim();
+		LocalDate date;
+		try {
+			if (!value.matches("\\d{2}/\\d{2}/\\d{4}")) {
+				throw new DateTimeParseException("Invalid date format", value, 0);
+			}
+			date = LocalDate.parse(value, dateFormat);
+		} catch (DateTimeParseException ex) {
+			searchMessage.setForeground(error);
+			searchMessage.setText("Enter a valid date in dd/mm/yyyy format.");
+			return;
+		}
+		if (date.isBefore(LocalDate.now())) {
+			searchMessage.setForeground(error);
+			searchMessage.setText("Please choose today or a future date.");
+			return;
+		}
+		bookingDate.setValue(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
+		String name = movieName.getText().trim();
+		ArrayList<Showing> results = schedule.findShowings(date, name);
+		if (results.isEmpty()) {
+			if (name.isEmpty()) {
+				searchMessage.setText("No showings available on " + date.format(dateFormat) + ". Please try another date.");
+			} else {
+				searchMessage.setText("No matching films on " + date.format(dateFormat) + ". Try another name or date.");
+			}
+		} else {
+			ArrayList<String> films = new ArrayList<>();
+			for (Showing showing : results) {
+				if (!films.contains(showing.getFilm())) {
+					films.add(showing.getFilm());
+					movieList.add(movieCard(showing.getFilm(), showing.getGenre(), results));
+				}
+			}
+			searchMessage.setText(films.size() + (films.size() == 1 ? " film showing on " : " films showing on ")
+					+ date.format(dateFormat) + ". Choose a time.");
+		}
+		movieList.revalidate();
+		movieList.repaint();
+	}
+
+	private JPanel movieCard(String title, String genre, ArrayList<Showing> results) {
+		JPanel card = panel(new BorderLayout(0, 8), surface);
 		card.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(line), new EmptyBorder(11, 16, 11, 16)));
 		JPanel description = panel(new GridLayout(2, 1, 0, 2), surface);
 		description.add(label(title, 17, text));
 		description.add(label(genre, 12, muted));
-		card.add(description, BorderLayout.CENTER);
-		JPanel showtimes = panel(new FlowLayout(FlowLayout.RIGHT, 6, 12), surface);
-		for (String time : times) {
-			JLabel timeLabel = label(time, 13, purple);
-			timeLabel.setOpaque(true);
-			timeLabel.setBackground(palePurple);
-			timeLabel.setBorder(new EmptyBorder(7, 9, 7, 9));
-			showtimes.add(timeLabel);
+		card.add(description, BorderLayout.NORTH);
+		JPanel showtimes = panel(new FlowLayout(FlowLayout.LEFT, 6, 0), surface);
+		for (Showing showing : results) {
+			if (showing.getFilm().equals(title)) {
+				JToggleButton time = new JToggleButton(showing.getTime());
+				time.setName("showing" + showingButtons.size());
+				time.getAccessibleContext().setAccessibleName(title + " at " + showing.getTime());
+				time.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+				time.setBackground(palePurple);
+				time.setForeground(purple);
+				time.setBorder(BorderFactory.createCompoundBorder(
+						BorderFactory.createLineBorder(line), new EmptyBorder(7, 12, 7, 12)));
+				time.putClientProperty("showing", showing);
+				time.addActionListener(this);
+				showingGroup.add(time);
+				showingButtons.add(time);
+				showtimes.add(time);
+			}
 		}
-		card.add(showtimes, BorderLayout.EAST);
+		card.add(showtimes, BorderLayout.CENTER);
 		return card;
+	}
+
+	private void selectShowing(JToggleButton button) {
+		selectedShowing = (Showing) button.getClientProperty("showing");
+		for (JToggleButton time : showingButtons) {
+			time.setBackground(time == button ? purple : palePurple);
+			time.setForeground(time == button ? Color.WHITE : purple);
+		}
+		chosenFilm.setText(selectedShowing.getFilm());
+		chosenDate.setText(selectedShowing.getDate().format(dateFormat));
+		chosenTime.setText("Time: " + selectedShowing.getTime());
+		continueButton.setEnabled(true);
+	}
+
+	private void continueBooking() {
+		if (selectedShowing == null) {
+			return;
+		}
+		if (selectedShowing.getDate().isBefore(LocalDate.now())) {
+			resetSearch();
+			searchMessage.setForeground(error);
+			searchMessage.setText("Please choose today or a future date.");
+			return;
+		}
+		bookingPanel.setShowing(selectedShowing, (String) ticketType.getSelectedItem());
+		screens.show(screenPanel, "booking");
 	}
 
 	private void showAccountCard(String name) {
@@ -302,6 +498,10 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		currentUser = user;
 		welcomeLabel.setText("Welcome, " + currentUser.getFullName() + ".");
 		sessionLabel.setText("Signed in as " + currentUser.getUsername());
+		ticketType.setSelectedIndex(0);
+		movieName.setText("");
+		bookingDate.setValue(new Date());
+		searchShowings();
 		screens.show(screenPanel, "home");
 	}
 
@@ -341,6 +541,8 @@ public class CinemaPanel extends JPanel implements ActionListener {
 
 	private void logout() {
 		currentUser = null;
+		movieName.setText("");
+		resetSearch();
 		loginUsername.setText("");
 		sessionLabel.setText("Not signed in");
 		screens.show(screenPanel, "account");
@@ -360,6 +562,16 @@ public class CinemaPanel extends JPanel implements ActionListener {
 			signUp();
 		} else if (target == logoutButton) {
 			logout();
+		} else if (target == searchButton || target == movieName
+				|| target == ((JSpinner.DateEditor) bookingDate.getEditor()).getTextField()) {
+			searchShowings();
+		} else if (target == todayButton) {
+			bookingDate.setValue(new Date());
+			searchShowings();
+		} else if (target == continueButton) {
+			continueBooking();
+		} else if (target instanceof JToggleButton && showingButtons.contains(target)) {
+			selectShowing((JToggleButton) target);
 		}
 	}
 }
