@@ -1,3 +1,6 @@
 /bin/
 /users.dat
 /users.dat.tmp
+/bookings.dat
+/bookings.dat.tmp
+/bookings.dat.lock

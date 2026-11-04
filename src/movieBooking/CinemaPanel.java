@@ -42,7 +42,6 @@ public class CinemaPanel extends JPanel implements ActionListener {
 	private JButton searchButton = button("Search", "searchButton", true);
 	private JButton todayButton = button("Today", "todayButton", false);
 	private JButton continueButton = button("Continue", "continueButton", true);
-	private JComboBox<String> ticketType = new JComboBox<>(new String[] { "Standard", "Recline" });
 	private JLabel searchMessage = label(" ", 13, muted);
 	private JLabel chosenFilm = label("No showing selected", 14, muted);
 	private JLabel chosenDate = label(" ", 14, muted);
@@ -71,6 +70,10 @@ public class CinemaPanel extends JPanel implements ActionListener {
 	private JLabel welcomeLabel = label("Welcome", 14, text);
 
 	public CinemaPanel(UserManager userManager) {
+		this(userManager, new BookingManager());
+	}
+
+	public CinemaPanel(UserManager userManager, BookingManager bookingManager) {
 		this.userManager = userManager;
 		setLayout(new BorderLayout());
 		setBackground(background);
@@ -86,7 +89,7 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		screenPanel.setBackground(background);
 		screenPanel.add(buildAccountScreen(), "account");
 		screenPanel.add(buildHomeScreen(), "home");
-		bookingPanel = new BookingPanel(new ActionListener() {
+		bookingPanel = new BookingPanel(bookingManager, new ActionListener() {
 			@Override
 			public void actionPerformed(ActionEvent e) {
 				if (selectedShowing != null && selectedShowing.getDate().isBefore(LocalDate.now())) {
@@ -269,12 +272,9 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		ticketPanel.setBorder(BorderFactory.createCompoundBorder(
 				BorderFactory.createLineBorder(line), new EmptyBorder(20, 18, 20, 18)));
 		JPanel ticketText = formPanel();
-		ticketType.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-		ticketType.setName("ticketType");
-		ticketType.getAccessibleContext().setAccessibleName("Ticket type");
 		continueButton.setEnabled(false);
 		JComponent[] visitDetails = { label("Your visit", 20, text), label("Athlone Cinema", 14, muted),
-				chosenFilm, chosenDate, chosenTime, label("Ticket type", 13, text), ticketType, continueButton };
+				chosenFilm, chosenDate, chosenTime, label("Choose your seats next", 13, muted), continueButton };
 		for (JComponent component : visitDetails) {
 			component.setAlignmentX(Component.LEFT_ALIGNMENT);
 			component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
@@ -457,7 +457,7 @@ public class CinemaPanel extends JPanel implements ActionListener {
 			searchMessage.setText("Please choose today or a future date.");
 			return;
 		}
-		bookingPanel.setShowing(selectedShowing, (String) ticketType.getSelectedItem());
+		bookingPanel.setShowing(selectedShowing, currentUser.getUsername());
 		screens.show(screenPanel, "booking");
 	}
 
@@ -498,7 +498,6 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		currentUser = user;
 		welcomeLabel.setText("Welcome, " + currentUser.getFullName() + ".");
 		sessionLabel.setText("Signed in as " + currentUser.getUsername());
-		ticketType.setSelectedIndex(0);
 		movieName.setText("");
 		bookingDate.setValue(new Date());
 		searchShowings();

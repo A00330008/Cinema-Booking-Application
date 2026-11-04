@@ -12,7 +12,13 @@ For CBA-2, I've added a search by date. After logging in, the user sees today's 
 
 There is also a movie name search. Typing part of a name, such as "dune" or "avengers", finds matching films for the selected date. Capital letters don't matter. Leaving the name blank shows all films for that day. Press Enter or select Search to see the results.
 
-The user can select a showing time, choose Standard or Recline tickets and select Continue. The next screen shows their chosen film, date, time and ticket type. They can also go back and change their choice. Seats and completed bookings still need to be added.
+The user can select a showing time and select Continue to choose their seats.
+
+For CBA-3, I've added a seat map with 48 seats. Rows A-D are Standard at EUR10 per seat and rows E-F are Recline at EUR15 per seat. The map shows available and booked seats, with an aisle down the middle. Clicking a seat chooses its ticket type automatically. Users can select seats from either section in the same booking. The summary shows the number of each type selected and the total updates as seats are selected or deselected.
+
+Selecting Confirm booking saves the booking and shows a summary. Booked seats stay unavailable for that film, date and time, including after restarting the program. Going back without confirming doesn't reserve any seats. Availability is checked again when confirming, so a seat taken by another booking can't be booked twice.
+
+Bookings are stored locally in `bookings.dat`. This file and its temporary and lock files are excluded from Git. A file lock keeps two running copies of the program from confirming the same seat at the same time. If the booking file can't be read or saved, the screen displays an error and doesn't confirm a booking. Refresh seats reloads availability and clears the current selection.
 
 ## Films
 
@@ -31,9 +37,10 @@ The showing times are examples and use the 24-hour format. The sample timetable 
 3. Right-click and select **Run As > Java Application**.
 4. Choose **Sign up** to create an account, then use those details to log in.
 5. Choose a date and enter a movie name if needed. Select Search, then select a showing time and Continue.
+6. Click one or more available seats. The row determines whether each seat is Standard or Recline. Check the total and select Confirm booking.
 
 The application uses Java 8 or later. No extra libraries or database are needed. Account details are stored locally, including passwords, so use a made-up password for testing. The account file and compiled files are excluded from Git.
 
 ## Next steps
 
-The next part of the project is to add seat selection and save completed bookings.
+The next parts of the project include confirmation emails, filtering by genre and viewing saved bookings.

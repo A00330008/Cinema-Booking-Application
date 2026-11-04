@@ -1,10 +1,13 @@
 package movieBooking;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
-public class Showing {
+public class Showing implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	private String film;
 	private String genre;
