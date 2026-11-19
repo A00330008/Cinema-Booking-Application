@@ -39,6 +39,7 @@ public class BookingPanel extends JPanel implements ActionListener {
 	private JLabel message = label(" ", 13);
 	private JTextArea seatNames = new JTextArea(3, 16);
 	private JTextArea receipt = new JTextArea();
+	private JTextField emailAddress = new JTextField();
 	private JButton confirmButton = button("Confirm booking", "confirmBooking", true);
 	private JButton refreshButton = button("Refresh seats", "refreshSeats", false);
 
@@ -116,7 +117,14 @@ public class BookingPanel extends JPanel implements ActionListener {
 		selected.setBorder(BorderFactory.createLineBorder(line));
 		count.setName("seatCount");
 		total.setName("bookingTotal");
-		JComponent[] details = { film, genre, date, time, standardCount, reclineCount, count, selected, total, confirmButton };
+		emailAddress.setName("bookingEmail");
+		emailAddress.getAccessibleContext().setAccessibleName("Confirmation email address");
+		emailAddress.setToolTipText("Enter an email address for your booking confirmation.");
+		emailAddress.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+		emailAddress.setBorder(BorderFactory.createCompoundBorder(
+				BorderFactory.createLineBorder(line), new EmptyBorder(7, 8, 7, 8)));
+		JComponent[] details = { film, genre, date, time, standardCount, reclineCount, count, selected,
+				label("Confirmation email", 13), emailAddress, total, confirmButton };
 		for (JComponent detail : details) {
 			detail.setAlignmentX(Component.LEFT_ALIGNMENT);
 			detail.setMaximumSize(new Dimension(Integer.MAX_VALUE, detail.getPreferredSize().height));
@@ -237,6 +245,7 @@ public class BookingPanel extends JPanel implements ActionListener {
 		this.showing = showing;
 		this.username = username;
 		confirmed = false;
+		emailAddress.setText("");
 		film.setText(showing.getFilm());
 		genre.setText(showing.getGenre());
 		date.setText("Date: " + showing.getDate().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")));
@@ -305,15 +314,23 @@ public class BookingPanel extends JPanel implements ActionListener {
 
 	private void confirmBooking() {
 		if (!confirmButton.isEnabled() || confirmed) return;
+		if (!BookingManager.isValidEmail(emailAddress.getText())) {
+			message.setForeground(error);
+			message.setText("Enter a valid email address before confirming your booking.");
+			emailAddress.requestFocusInWindow();
+			return;
+		}
 		try {
-			Booking booking = bookingManager.bookSeats(username, showing, selectedSeats);
+			Booking booking = bookingManager.bookSeats(username, emailAddress.getText(), showing, selectedSeats);
 			confirmed = true;
 			confirmButton.setEnabled(false);
-			receipt.setText("Reference: " + booking.getReference() + "\n\n" + showing.getFilm() + "\n"
+			receipt.setText("Your booking is confirmed\n\nReference: " + booking.getReference() + "\n\n"
+					+ showing.getFilm() + "\nAthlone Cinema - Screen 1\n"
 					+ "Date: " + showing.getDate().format(DateTimeFormatter.ofPattern("dd/MM/uuuu")) + "\n"
 					+ "Time: " + showing.getTime() + "\n\n" + "Ticket types: " + booking.getTicketType() + "\n"
 					+ "Seats: " + String.join(", ", booking.getSeats()) + "\n"
-					+ "Total: " + BookingManager.formatPrice(booking.getTotal()));
+					+ "Total: " + BookingManager.formatPrice(booking.getTotal()) + "\n\n"
+					+ "A confirmation email has been sent to " + booking.getEmailAddress() + ".");
 			receipt.setCaretPosition(0);
 			pages.show(this, "confirmed");
 		} catch (IllegalArgumentException ex) {

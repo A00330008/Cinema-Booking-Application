@@ -10,6 +10,7 @@ public class Booking implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private String reference;
 	private String username;
+	private String emailAddress;
 	private Showing showing;
 	private String ticketType;
 	private ArrayList<String> seats;
@@ -17,8 +18,13 @@ public class Booking implements Serializable {
 	private int totalPrice;
 
 	public Booking(String username, Showing showing, ArrayList<String> seats) {
+		this(username, "", showing, seats);
+	}
+
+	public Booking(String username, String emailAddress, Showing showing, ArrayList<String> seats) {
 		reference = UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT);
 		this.username = username;
+		this.emailAddress = emailAddress;
 		this.showing = showing;
 		this.seats = new ArrayList<>(seats);
 		totalPrice = BookingManager.getTotalPrice(seats);
@@ -37,6 +43,10 @@ public class Booking implements Serializable {
 
 	public String getUsername() {
 		return username;
+	}
+
+	public String getEmailAddress() {
+		return emailAddress;
 	}
 
 	public Showing getShowing() {

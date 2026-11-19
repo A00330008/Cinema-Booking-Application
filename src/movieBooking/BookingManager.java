@@ -3,6 +3,7 @@ package movieBooking;
 import java.io.*;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ public class BookingManager {
 
 	private static final Object bookingLock = new Object();
 	private File bookingFile;
+	private File confirmationEmailFile;
 
 	public BookingManager() {
 		this(new File("bookings.dat"));
@@ -19,6 +21,11 @@ public class BookingManager {
 
 	public BookingManager(File bookingFile) {
 		this.bookingFile = bookingFile;
+		confirmationEmailFile = new File(bookingFile.getPath() + ".emails.txt");
+	}
+
+	public static boolean isValidEmail(String emailAddress) {
+		return emailAddress != null && emailAddress.trim().matches("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
 	}
 
 	public static ArrayList<String> getSeats() {
@@ -108,8 +115,17 @@ public class BookingManager {
 
 	public Booking bookSeats(String username, Showing showing, ArrayList<String> seats)
 			throws IOException, ClassNotFoundException {
+		return bookSeats(username, "", showing, seats);
+	}
+
+	public Booking bookSeats(String username, String emailAddress, Showing showing, ArrayList<String> seats)
+			throws IOException, ClassNotFoundException {
+		String email = emailAddress == null ? "" : emailAddress.trim();
 		if (username == null || username.trim().isEmpty()) {
 			throw new IllegalArgumentException("Please log in before booking.");
+		}
+		if (!email.isEmpty() && !isValidEmail(email)) {
+			throw new IllegalArgumentException("Enter a valid email address.");
 		}
 		if (showing == null || showing.getDate().isBefore(LocalDate.now())) {
 			throw new IllegalArgumentException("Please choose a showing for today or a future date.");
@@ -137,11 +153,27 @@ public class BookingManager {
 						throw new IllegalArgumentException("Seat " + seat + " is no longer available. Please choose again.");
 					}
 				}
-				Booking booking = new Booking(username.trim(), showing, selection);
+				Booking booking = new Booking(username.trim(), email, showing, selection);
 				bookings.add(booking);
 				saveBookings(bookings);
+				if (!email.isEmpty()) saveConfirmationEmail(booking);
 				return booking;
 			}
 		}
+	}
+
+	private void saveConfirmationEmail(Booking booking) throws IOException {
+		String email = "To: " + booking.getEmailAddress() + System.lineSeparator()
+				+ "Subject: Athlone Cinema booking confirmation" + System.lineSeparator()
+				+ "Reference: " + booking.getReference() + System.lineSeparator()
+				+ "Film: " + booking.getShowing().getFilm() + System.lineSeparator()
+				+ "Cinema: Athlone Cinema, Screen 1" + System.lineSeparator()
+				+ "Date: " + booking.getShowing().getDate() + System.lineSeparator()
+				+ "Time: " + booking.getShowing().getTime() + System.lineSeparator()
+				+ "Seats: " + String.join(", ", booking.getSeats()) + System.lineSeparator()
+				+ "Total: " + formatPrice(booking.getTotal()) + System.lineSeparator()
+				+ "----------------------------------------" + System.lineSeparator();
+		Files.write(confirmationEmailFile.toPath(), email.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE,
+				StandardOpenOption.APPEND);
 	}
 }
