@@ -43,4 +43,17 @@ class CinemaScheduleTest {
 
 		assertTrue(schedule.findShowings(LocalDate.of(2026, 11, 20), "Nonexistent Film").isEmpty());
 	}
+
+    @Test
+    void genreFilterReturnsOnlyFilmsInTheRequestedGenre() {
+        LocalDate date = LocalDate.of(2026, 11, 20);
+        CinemaSchedule schedule = new CinemaSchedule(date);
+
+        ArrayList<Showing> results = schedule.findShowingsByGenre(date, "Horror");
+
+        assertEquals(3, results.size());
+        for (Showing showing : results) {
+            assertEquals("Horror", showing.getGenre());
+        }
+    }
 }
