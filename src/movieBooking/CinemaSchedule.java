@@ -49,4 +49,15 @@ public class CinemaSchedule {
 		}
 		return results;
 	}
+
+	public ArrayList<Showing> findShowingsByGenre(LocalDate date, String genre) {
+		String selectedGenre = genre.trim().toLowerCase(Locale.ROOT);
+		ArrayList<Showing> results = new ArrayList<>();
+		for (Showing showing : showings) {
+			if (showing.getDate().equals(date) && showing.getGenre().toLowerCase(Locale.ROOT).equals(selectedGenre)) {
+				results.add(showing);
+			}
+		}
+		return results;
+	}
 }
