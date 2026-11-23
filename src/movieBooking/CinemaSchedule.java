@@ -42,8 +42,8 @@ public class CinemaSchedule {
 	public ArrayList<Showing> findShowings(LocalDate date, String filmName) {
 		String searchName = filmName.trim().toLowerCase(Locale.ROOT);
 		ArrayList<Showing> results = new ArrayList<>();
-		for (Showing showing : showings) {
-			if (showing.getDate().equals(date) && showing.getFilm().toLowerCase(Locale.ROOT).contains(searchName)) {
+		for (Showing showing : findShowingsForDate(date)) {
+			if (showing.getFilm().toLowerCase(Locale.ROOT).contains(searchName)) {
 				results.add(showing);
 			}
 		}
@@ -53,8 +53,18 @@ public class CinemaSchedule {
 	public ArrayList<Showing> findShowingsByGenre(LocalDate date, String genre) {
 		String selectedGenre = genre.trim().toLowerCase(Locale.ROOT);
 		ArrayList<Showing> results = new ArrayList<>();
+		for (Showing showing : findShowingsForDate(date)) {
+			if (showing.getGenre().toLowerCase(Locale.ROOT).equals(selectedGenre)) {
+				results.add(showing);
+			}
+		}
+		return results;
+	}
+
+	private ArrayList<Showing> findShowingsForDate(LocalDate date) {
+		ArrayList<Showing> results = new ArrayList<>();
 		for (Showing showing : showings) {
-			if (showing.getDate().equals(date) && showing.getGenre().toLowerCase(Locale.ROOT).equals(selectedGenre)) {
+			if (showing.getDate().equals(date)) {
 				results.add(showing);
 			}
 		}

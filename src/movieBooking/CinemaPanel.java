@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.event.*;
@@ -39,8 +40,11 @@ public class CinemaPanel extends JPanel implements ActionListener {
 	private ButtonGroup showingGroup = new ButtonGroup();
 	private JSpinner bookingDate = new JSpinner(new SpinnerDateModel(new Date(), null, null, Calendar.DAY_OF_MONTH));
 	private JTextField movieName = new JTextField();
+	private JComboBox<String> genreFilter = new JComboBox<>(
+			new String[] { "All genres", "Sci-Fi", "Horror", "Action", "Superhero", "Drama" });
 	private JButton searchButton = button("Search", "searchButton", true);
 	private JButton todayButton = button("Today", "todayButton", false);
+	private JButton clearGenreButton = button("Clear genre", "clearGenreButton", false);
 	private JButton continueButton = button("Continue", "continueButton", true);
 	private JLabel searchMessage = label(" ", 13, muted);
 	private JLabel chosenFilm = label("No showing selected", 14, muted);
@@ -117,6 +121,8 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		confirmPassword.addActionListener(this);
 		searchButton.addActionListener(this);
 		todayButton.addActionListener(this);
+		clearGenreButton.addActionListener(this);
+		genreFilter.addActionListener(this);
 		continueButton.addActionListener(this);
 		showAccountCard("login");
 	}
@@ -301,6 +307,16 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		movieName.setPreferredSize(new Dimension(180, 40));
 		movieName.addActionListener(this);
 		controls.add(movieName);
+		JLabel genreLabel = label("Genre", 14, text);
+		genreLabel.setLabelFor(genreFilter);
+		controls.add(genreLabel);
+		genreFilter.setName("genreFilter");
+		genreFilter.getAccessibleContext().setAccessibleName("Genre filter");
+		genreFilter.setToolTipText("Choose a genre or select All genres to clear the filter.");
+		genreFilter.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+		genreFilter.setPreferredSize(new Dimension(130, 40));
+		controls.add(genreFilter);
+		controls.add(clearGenreButton);
 		JLabel dateLabel = label("Date (dd/mm/yyyy)", 14, text);
 		dateLabel.setLabelFor(bookingDate);
 		controls.add(dateLabel);
@@ -383,12 +399,19 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		}
 		bookingDate.setValue(Date.from(date.atStartOfDay(ZoneId.systemDefault()).toInstant()));
 		String name = movieName.getText().trim();
-		ArrayList<Showing> results = schedule.findShowings(date, name);
+		String genre = (String) genreFilter.getSelectedItem();
+		ArrayList<Showing> results = findMatchingShowings(date, name, genre);
 		if (results.isEmpty()) {
-			if (name.isEmpty()) {
+			if (name.isEmpty() && genre.equals("All genres")) {
 				searchMessage.setText("No showings available on " + date.format(dateFormat) + ". Please try another date.");
-			} else {
+			} else if (name.isEmpty()) {
+				searchMessage.setText("No " + genre + " films available on " + date.format(dateFormat)
+						+ ". Clear the genre filter or try another date.");
+			} else if (genre.equals("All genres")) {
 				searchMessage.setText("No matching films on " + date.format(dateFormat) + ". Try another name or date.");
+			} else {
+				searchMessage.setText("No " + genre + " films matching \"" + name + "\" on "
+						+ date.format(dateFormat) + ". Clear the genre filter or try another search.");
 			}
 		} else {
 			ArrayList<String> films = new ArrayList<>();
@@ -403,6 +426,26 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		}
 		movieList.revalidate();
 		movieList.repaint();
+	}
+
+	private ArrayList<Showing> findMatchingShowings(LocalDate date, String name, String genre) {
+		if (genre.equals("All genres")) {
+			return schedule.findShowings(date, name);
+		}
+
+		ArrayList<Showing> genreResults = schedule.findShowingsByGenre(date, genre);
+		if (name.isEmpty()) {
+			return genreResults;
+		}
+
+		ArrayList<Showing> results = new ArrayList<>();
+		String searchName = name.toLowerCase(Locale.ROOT);
+		for (Showing showing : genreResults) {
+			if (showing.getFilm().toLowerCase(Locale.ROOT).contains(searchName)) {
+				results.add(showing);
+			}
+		}
+		return results;
 	}
 
 	private JPanel movieCard(String title, String genre, ArrayList<Showing> results) {
@@ -499,6 +542,7 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		welcomeLabel.setText("Welcome, " + currentUser.getFullName() + ".");
 		sessionLabel.setText("Signed in as " + currentUser.getUsername());
 		movieName.setText("");
+		genreFilter.setSelectedIndex(0);
 		bookingDate.setValue(new Date());
 		searchShowings();
 		screens.show(screenPanel, "home");
@@ -541,6 +585,7 @@ public class CinemaPanel extends JPanel implements ActionListener {
 	private void logout() {
 		currentUser = null;
 		movieName.setText("");
+		genreFilter.setSelectedIndex(0);
 		resetSearch();
 		loginUsername.setText("");
 		sessionLabel.setText("Not signed in");
@@ -564,6 +609,14 @@ public class CinemaPanel extends JPanel implements ActionListener {
 		} else if (target == searchButton || target == movieName
 				|| target == ((JSpinner.DateEditor) bookingDate.getEditor()).getTextField()) {
 			searchShowings();
+		} else if (target == genreFilter) {
+			searchShowings();
+		} else if (target == clearGenreButton) {
+			if (genreFilter.getSelectedIndex() == 0) {
+				searchShowings();
+			} else {
+				genreFilter.setSelectedIndex(0);
+			}
 		} else if (target == todayButton) {
 			bookingDate.setValue(new Date());
 			searchShowings();
