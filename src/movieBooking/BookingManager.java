@@ -113,6 +113,11 @@ public class BookingManager {
 		}
 	}
 
+	public ArrayList<Booking> getBookingsForUser(String username) throws IOException, ClassNotFoundException {
+		// CBA-6 Red stage: return an empty list until the lookup is implemented.
+		return new ArrayList<>();
+	}
+
 	public Booking bookSeats(String username, Showing showing, ArrayList<String> seats)
 			throws IOException, ClassNotFoundException {
 		return bookSeats(username, "", showing, seats);

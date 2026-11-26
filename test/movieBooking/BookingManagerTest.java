@@ -61,6 +61,21 @@ class BookingManagerTest {
 	}
 
 	@Test
+	void savedBookingsOnlyIncludeTheRequestedUser() throws Exception {
+		File bookingFile = temporaryFolder.resolve("bookings.dat").toFile();
+		BookingManager manager = new BookingManager(bookingFile);
+		Showing showing = new Showing("Dune part 3", "Sci-Fi", LocalDate.now().plusDays(1), LocalTime.of(20, 0));
+		Booking aliceBooking = manager.bookSeats("alice", showing, new ArrayList<>(Arrays.asList("A1")));
+		manager.bookSeats("bob", showing, new ArrayList<>(Arrays.asList("A2")));
+
+		BookingManager reopenedManager = new BookingManager(bookingFile);
+		ArrayList<Booking> savedBookings = reopenedManager.getBookingsForUser("alice");
+
+		assertEquals(1, savedBookings.size());
+		assertEquals(aliceBooking.getReference(), savedBookings.get(0).getReference());
+	}
+
+	@Test
 	void emailValidationRejectsInvalidAddresses() {
 		assertTrue(BookingManager.isValidEmail("customer@example.com"));
 		assertFalse(BookingManager.isValidEmail("not-an-email"));
