@@ -114,8 +114,20 @@ public class BookingManager {
 	}
 
 	public ArrayList<Booking> getBookingsForUser(String username) throws IOException, ClassNotFoundException {
-		// CBA-6 Red stage: return an empty list until the lookup is implemented.
-		return new ArrayList<>();
+		ArrayList<Booking> results = new ArrayList<>();
+		if (username == null || username.trim().isEmpty()) {
+			return results;
+		}
+
+		String owner = username.trim();
+		synchronized (bookingLock) {
+			for (Booking booking : loadBookings()) {
+				if (owner.equalsIgnoreCase(booking.getUsername())) {
+					results.add(booking);
+				}
+			}
+		}
+		return results;
 	}
 
 	public Booking bookSeats(String username, Showing showing, ArrayList<String> seats)
